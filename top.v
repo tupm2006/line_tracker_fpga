@@ -27,16 +27,16 @@ module top (
     // Tuning Parameters
     // =====================================================
     localparam MAX_COUNT   = 2700;          
-    localparam BASE_SPEED  = 1800;          
-    localparam SEARCH_SPEED = 1400;         
+    localparam BASE_SPEED  = 2200;          
+    localparam SEARCH_SPEED = 1700;         
 
     localparam signed [15:0] LEFT_TRIM  = 150;
     localparam signed [15:0] RIGHT_TRIM = 0;
 
-    localparam signed [15:0] KP = 160;
-    localparam signed [15:0] KD = 400;
+    localparam signed [15:0] KP = 35;
+    localparam signed [15:0] KD = 80;
 
-    localparam CURVE_SLOWDOWN = 30;
+    localparam CURVE_SLOWDOWN = 130;
 
     localparam CTRL_DIV = 5400; // 5kHz Loop
 
@@ -63,6 +63,42 @@ module top (
     reg [15:0] abs_error;
     reg [15:0] active_speed;
 
+    // Auto-Trim Variables
+    reg [1:0] enc_l_sync = 0;
+    reg [1:0] enc_r_sync = 0;
+    reg [11:0] enc_l_cnt = 0;
+    reg [11:0] enc_r_cnt = 0;
+    reg [19:0] trim_timer = 0;
+    localparam TRIM_WINDOW = 540_000; // 20ms at 27MHz
+    reg signed [15:0] auto_trim = 0;
+    wire going_straight = (error == 0);
+
+    // 0. Auto-Trim Logic
+    always @(posedge clk) begin
+        // Synchronize and edge detect
+        enc_l_sync <= {enc_l_sync[0], enc_l_c1};
+        enc_r_sync <= {enc_r_sync[0], enc_r_c1};
+        
+        if (trim_timer >= TRIM_WINDOW - 1) begin
+            trim_timer <= 0;
+            if (going_straight) begin
+                if (enc_l_cnt > enc_r_cnt + 1) begin
+                    // Left is faster -> slow it down by increasing auto_trim
+                    if (auto_trim < 300) auto_trim <= auto_trim + 2;
+                end else if (enc_r_cnt > enc_l_cnt + 1) begin
+                    // Right is faster -> slow it down by decreasing auto_trim
+                    if (auto_trim > -300) auto_trim <= auto_trim - 2;
+                end
+            end
+            enc_l_cnt <= 0;
+            enc_r_cnt <= 0;
+        end else begin
+            trim_timer <= trim_timer + 1;
+            if (enc_l_sync == 2'b01 && enc_l_cnt < 4095) enc_l_cnt <= enc_l_cnt + 1;
+            if (enc_r_sync == 2'b01 && enc_r_cnt < 4095) enc_r_cnt <= enc_r_cnt + 1;
+        end
+    end
+
     // 1. Control Loop Divider
     always @(posedge clk) begin
         if (ctrl_tick) ctrl_cnt <= 0;
@@ -79,12 +115,12 @@ module top (
                     error <= 0;
                     last_side <= 0;
                 end
-                5'b10111: begin error <= -8;  last_side <= 1; end  
-                5'b00111: begin error <= -12; last_side <= 1; end  
-                5'b01111: begin error <= -16; last_side <= 1; end  
-                5'b11101: begin error <= 8;   last_side <= 2; end  
-                5'b11100: begin error <= 12;  last_side <= 2; end  
-                5'b11110: begin error <= 16;  last_side <= 2; end  // far: boosted
+                5'b10111: begin error <= -6;  last_side <= 1; end  
+                5'b00111: begin error <= -15; last_side <= 1; end  
+                5'b01111: begin error <= -40; last_side <= 1; end  
+                5'b11101: begin error <= 6;   last_side <= 2; end  
+                5'b11100: begin error <= 15;  last_side <= 2; end  
+                5'b11110: begin error <= 40;  last_side <= 2; end  // far: boosted
                 5'b00000: begin error <= 0; end
                 5'b11111: begin line_detected <= 1'b0; end
                 default: begin end
@@ -117,14 +153,14 @@ module top (
                 end
             end else begin
                 abs_error = (error < 0) ? -error : error;
-                if (abs_error * CURVE_SLOWDOWN >= BASE_SPEED || (BASE_SPEED - abs_error * CURVE_SLOWDOWN) < 1200)
-                    active_speed = 1200;
+                if (abs_error * CURVE_SLOWDOWN >= BASE_SPEED || (BASE_SPEED - abs_error * CURVE_SLOWDOWN) < 500)
+                    active_speed = 500;
                 else
                     active_speed = BASE_SPEED - (abs_error * CURVE_SLOWDOWN);
 
                 // Calculate mixed speeds (Signed)
-                mix_l = $signed({1'b0, active_speed}) + pd_output + LEFT_TRIM;
-                mix_r = $signed({1'b0, active_speed}) - pd_output + RIGHT_TRIM;
+                mix_l = $signed({1'b0, active_speed}) + pd_output - auto_trim;
+                mix_r = $signed({1'b0, active_speed}) - pd_output + auto_trim;
 
                 // --- Motor L (bin) Control ---
                 if (mix_l >= 0) begin
