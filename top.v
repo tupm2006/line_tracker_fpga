@@ -27,8 +27,8 @@ module top (
     // Tuning Parameters
     // =====================================================
     localparam MAX_COUNT   = 2700;          
-    localparam BASE_SPEED  = 2200;          
-    localparam SEARCH_SPEED = 1700;         
+    localparam BASE_SPEED  = 2400;          
+    localparam SEARCH_SPEED = 2300;         
 
     localparam signed [15:0] LEFT_TRIM  = 150;
     localparam signed [15:0] RIGHT_TRIM = 0;
@@ -36,7 +36,7 @@ module top (
     localparam signed [15:0] KP = 35;
     localparam signed [15:0] KD = 80;
 
-    localparam CURVE_SLOWDOWN = 130;
+    localparam CURVE_SLOWDOWN = 180;
 
     localparam CTRL_DIV = 5400; // 5kHz Loop
 
@@ -51,6 +51,7 @@ module top (
     reg signed [15:0] error      = 0;
     reg signed [15:0] last_error = 0;
     reg signed [15:0] pd_output  = 0;
+    reg [15:0] abs_error_tmp     = 0;
 
     reg [11:0] duty_l = 0;
     reg [11:0] duty_r = 0;
