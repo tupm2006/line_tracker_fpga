@@ -1,17 +1,17 @@
 // ==========================================================
-// 0. CHÂN XUNG NHỊP HỆ THỐNG (BẮT BUỘC)
+// 0. CHÂN XUNG NHỊP HỆ THỐNG
 // ==========================================================
 IO_LOC "clk" 52;
 IO_PORT "clk" IO_TYPE=LVCMOS33 PULL_MODE=UP;
 
 // ==========================================================
-// 1. MẠCH LÁI ĐỘNG CƠ TB6612FNG (Trái: A, Phải: B)
+// 1. MẠCH LÁI ĐỘNG CƠ TB6612FNG (From run_forward)
 // ==========================================================
 IO_LOC "pwma" 75;
 IO_PORT "pwma" IO_TYPE=LVCMOS33;
-IO_LOC "ain2" 74;
+IO_LOC "ain2" 73;
 IO_PORT "ain2" IO_TYPE=LVCMOS33;
-IO_LOC "ain1" 73;
+IO_LOC "ain1" 74;
 IO_PORT "ain1" IO_TYPE=LVCMOS33;
 
 IO_LOC "bin1" 72;
@@ -22,21 +22,41 @@ IO_LOC "pwmb" 70;
 IO_PORT "pwmb" IO_TYPE=LVCMOS33;
 
 // ==========================================================
-// 2. CỤM CẢM BIẾN 5 LINE TCRT5000L
+// 2. CỤM CẢM BIẾN TRƯỚC (8 MẮT - CHÍNH)
 // ==========================================================
-IO_LOC "s1" 51;
-IO_PORT "s1" IO_TYPE=LVCMOS33;
-IO_LOC "s2" 53;
-IO_PORT "s2" IO_TYPE=LVCMOS33;
-IO_LOC "s3" 54;
-IO_PORT "s3" IO_TYPE=LVCMOS33;
-IO_LOC "s4" 55;
-IO_PORT "s4" IO_TYPE=LVCMOS33;
-IO_LOC "s5" 56;
-IO_PORT "s5" IO_TYPE=LVCMOS33;
+IO_LOC "f1" 28;
+IO_PORT "f1" IO_TYPE=LVCMOS33;
+IO_LOC "f2" 29;
+IO_PORT "f2" IO_TYPE=LVCMOS33;
+IO_LOC "f3" 30;
+IO_PORT "f3" IO_TYPE=LVCMOS33;
+IO_LOC "f4" 33;
+IO_PORT "f4" IO_TYPE=LVCMOS33;
+IO_LOC "f5" 34;
+IO_PORT "f5" IO_TYPE=LVCMOS33;
+IO_LOC "f6" 40;
+IO_PORT "f6" IO_TYPE=LVCMOS33;
+IO_LOC "f7" 35;
+IO_PORT "f7" IO_TYPE=LVCMOS33;
+IO_LOC "f8" 41;
+IO_PORT "f8" IO_TYPE=LVCMOS33;
 
 // ==========================================================
-// 3. CỤM ENCODER 
+// 3. CỤM CẢM BIẾN SAU (5 MẮT - KD ASSIST)
+// ==========================================================
+IO_LOC "b1" 51;
+IO_PORT "b1" IO_TYPE=LVCMOS33;
+IO_LOC "b2" 53;
+IO_PORT "b2" IO_TYPE=LVCMOS33;
+IO_LOC "b3" 54;
+IO_PORT "b3" IO_TYPE=LVCMOS33;
+IO_LOC "b4" 55;
+IO_PORT "b4" IO_TYPE=LVCMOS33;
+IO_LOC "b5" 56;
+IO_PORT "b5" IO_TYPE=LVCMOS33;
+
+// ==========================================================
+// 4. CỤM ENCODER
 // ==========================================================
 IO_LOC "enc_l_c1" 26;
 IO_PORT "enc_l_c1" IO_TYPE=LVCMOS33;

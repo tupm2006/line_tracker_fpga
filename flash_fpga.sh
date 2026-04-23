@@ -1,55 +1,78 @@
 #!/bin/bash
 
 # ==============================================================================
-# Tang Nano 9K Robust Flash Script (v2)
+# Tang Nano 9K Pro Flash Script
 # ==============================================================================
-# Captures output to detect CRC/FAIL errors and automatically retries.
+# Usage: 
+#   ./flash_fpga.sh          -> Fast SRAM load (lost on power-off)
+#   ./flash_fpga.sh --flash  -> Permanent Flash load (slow erase/verify)
 # ==============================================================================
 
 BITSTREAM="line_tracker.fs"
 BOARD="tangnano9k"
-FREQ="2000000"
-LOADER="/usr/bin/openFPGALoader"
+FREQ="2500000"
+LOADER="openFPGALoader"
 
-# Permission check
-if ! groups | grep -q 'uaccess' && [ ! -w /dev/bus/usb ]; then
-    echo "WARNING: Permission issue. Check udev rules."
+# 1. Configuration
+FLASH_MODE=false
+if [[ "$1" == "--flash" ]]; then
+    FLASH_MODE=true
+    echo "--- PERMANENT FLASH MODE ENABLED ---"
+else
+    echo "--- FAST SRAM MODE (Default) ---"
 fi
 
+# 2. Check for Bitstream
 if [ ! -f "$BITSTREAM" ]; then
-    echo "Error: $BITSTREAM not found. Run 'make' first."
+    echo "ERROR: Bitstream '$BITSTREAM' not found."
+    echo "Run 'make' or check your file names."
     exit 1
 fi
 
-MAX_ATTEMPTS=3
-ATTEMPT=1
-
-while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-    echo "--- Flash Attempt $ATTEMPT of $MAX_ATTEMPTS ---"
-    
-    # Run the flash command and capture both stdout and stderr
-    # We use 'make flash' if you prefer, but calling direct allows freq control
-    OUTPUT=$($LOADER -b $BOARD --freq $FREQ -f "$BITSTREAM" 2>&1)
-    RET_CODE=$?
-    
-    echo "$OUTPUT"
-    
-    # Check for success: Exit code 0 AND no "FAIL" or "CRC" in output
-    if [ $RET_CODE -eq 0 ] && ! echo "$OUTPUT" | grep -qi "FAIL" && ! echo "$OUTPUT" | grep -qi "CRC"; then
-        echo "SUCCESS: Bitstream verified and loaded."
-        $LOADER -b $BOARD --reset
-        exit 0
+# 3. Programming Logic
+flash_once() {
+    if [ "$FLASH_MODE" = true ]; then
+        # Flash mode (Slow, Permanent)
+        $LOADER -b $BOARD --freq $FREQ -f "$BITSTREAM"
     else
-        echo "------------------------------------------------"
-        if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
-            echo "DETECTION: CRC/FAIL or Busy state detected."
-            echo "Resetting JTAG state and retrying in 200ms..."
-            $LOADER -b $BOARD --detect > /dev/null 2>&1
-            sleep 0.2
-        else
-            echo "FATAL: Flash failed after $MAX_ATTEMPTS attempts."
-            exit 1
-        fi
+        # SRAM mode (Fast, Volatile)
+        $LOADER -b $BOARD --freq $FREQ "$BITSTREAM"
     fi
-    ATTEMPT=$((ATTEMPT + 1))
+}
+
+# 4. Attempt Programming with Retry
+MAX_RETRIES=2
+COUNT=0
+SUCCESS=false
+
+while [ $COUNT -le $MAX_RETRIES ]; do
+    echo "Attempting to load bitstream (Try $((COUNT+1)))..."
+    
+    # Execute and capture output
+    flash_once
+    if [ $? -eq 0 ]; then
+        SUCCESS=true
+        break
+    fi
+    
+    echo "WARNING: Load failed. Resetting cable and retrying..."
+    $LOADER -b $BOARD --detect > /dev/null 2>&1
+    sleep 0.5
+    ((COUNT++))
 done
+
+# 5. Final Status
+if [ "$SUCCESS" = true ]; then
+    echo "----------------------------------------"
+    echo "SUCCESS: FPGA Programmed Successfully."
+    echo "----------------------------------------"
+    # Optional Reset
+    $LOADER -b $BOARD --reset > /dev/null 2>&1
+    exit 0
+else
+    echo "----------------------------------------"
+    echo "FATAL ERROR: Failed to program FPGA after $MAX_RETRIES retries."
+    echo "Check USB connection and Tang Nano 9K lights."
+    echo "----------------------------------------"
+    exit 1
+fi
